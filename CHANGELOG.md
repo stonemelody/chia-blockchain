@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project does not yet adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 for setuptools_scm/PEP 440 reasons.
 
+## UNRELEASED
+
+### Changed
+- Temporary peer ban for certain protocol violations
+
 ## 1.2.5 Chia blockchain 2021-08-27
 
 ### Fixed
