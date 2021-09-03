@@ -122,7 +122,7 @@ class FullNode:
         # create the store (db) and full node instance
         self.connection = await aiosqlite.connect(self.db_path)
         await self.connection.execute("pragma journal_mode=wal")
-        await self.connection.execute("pragma synchronous=FULL")
+        await self.connection.execute("pragma synchronous=OFF")
         self.db_wrapper = DBWrapper(self.connection)
         self.block_store = await BlockStore.create(self.db_wrapper)
         self.sync_store = await SyncStore.create()
