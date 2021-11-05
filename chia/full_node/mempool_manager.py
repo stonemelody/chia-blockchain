@@ -296,8 +296,9 @@ class MempoolManager:
         removal_record_dict: Dict[bytes32, CoinRecord] = {}
         removal_coin_dict: Dict[bytes32, Coin] = {}
         removal_amount = uint64(0)
-        for name in removal_names:
-            removal_record = await self.coin_store.get_coin_record(name)
+
+        removal_records = await self.coin_store.get_coin_record(removal_names)
+        for removal_record in removal_records:
             if removal_record is None and name not in additions_dict:
                 return None, MempoolInclusionStatus.FAILED, Err.UNKNOWN_UNSPENT
             elif name in additions_dict:

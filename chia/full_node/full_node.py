@@ -943,33 +943,41 @@ class FullNode:
         all_coin_changes: Dict[bytes32, CoinRecord] = {}
         all_hint_changes: Dict[bytes, Dict[bytes32, CoinRecord]] = {}
 
-        for i, block in enumerate(blocks_to_validate):
-            assert pre_validation_results[i].required_iters is not None
-            result, error, fork_height, coin_changes = await self.blockchain.receive_block(
-                block, pre_validation_results[i], None if advanced_peak else fork_point
-            )
-            coin_record_list, hint_records = coin_changes
+        for res in pre_validation_results[i]:
+            assert res.required_iters is not None
 
-            # Update all changes
-            for record in coin_record_list:
-                all_coin_changes[record.name] = record
-            for hint, list_of_records in hint_records.items():
-                if hint not in all_hint_changes:
-                    all_hint_changes[hint] = {}
-                for record in list_of_records:
-                    all_hint_changes[hint][record.name] = record
+        success, err, err_code, err_idx, fork_height, coin_changes = await self.blockchain.receive_blocks(
+                blocks_to_validate, pre_validation_results, fork_point)
 
-            if result == ReceiveBlockResult.NEW_PEAK:
-                advanced_peak = True
-            elif result == ReceiveBlockResult.INVALID_BLOCK or result == ReceiveBlockResult.DISCONNECTED_BLOCK:
-                if error is not None:
-                    self.log.error(f"Error: {error}, Invalid block from peer: {peer.get_peer_logging()} ")
-                return False, advanced_peak, fork_height, ([], {})
-            block_record = self.blockchain.block_record(block.header_hash)
+        coin_record_list, hint_records = coin_changes
+
+        # Update all changes
+        for record in coin_record_list:
+            all_coin_changes[record.name] = record
+        for hint, list_of_records in hint_records.items():
+            if hint not in all_hint_changes:
+                all_hint_changes[hint] = {}
+            for record in list_of_records:
+                all_hint_changes[hint][record.name] = record
+
+        # Even if we failed at some block, we need to manage state for the
+        # blocks before that.
+        end = err_idx if err is not None else len(blocks_to_validate)
+        for i in range(end):
+            block_record = self.blockchain.block_record(
+                    blocks_to_validate[i].header_hash)
             if block_record.sub_epoch_summary_included is not None:
                 if self.weight_proof_handler is not None:
                     await self.weight_proof_handler.create_prev_sub_epoch_segments()
-        if advanced_peak:
+
+        if succuess == ReceiveBlockResult.NEW_PEAK:
+            advanced_peak = True
+
+        if err is not None and (err == ReceiveBlockResult.INVALID_BLOCK or err == ReceiveBlockResult.DISCONNECTED_BLOCK):
+            if err_code is not None:
+                self.log.error(f"Error: {error}, Invalid block from peer: {peer.get_peer_logging()} ")
+            return False, advanced_peak, fork_height, ([], {})
+        elif advanced_peak:
             self._state_changed("new_peak")
             self.log.debug(
                 f"Total time for {len(blocks_to_validate)} blocks: {time.time() - pre_validate_start}, "
